@@ -3,137 +3,79 @@
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
+#include <bx/uint32_t.h>
 #include "common.h"
 #include "bgfx_utils.h"
 #include "imgui/imgui.h"
 
 namespace
 {
-
-struct PosColorVertex
+struct ObjIndex
 {
-	float m_x;
-	float m_y;
-	float m_z;
-	uint32_t m_abgr;
+    float vertex_start;
+	float vertex_count;
+	float index_start;
+	float index_count;
 
-	static void init()
-	{
-		ms_layout
-			.begin()
-			.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::Color0,   4, bgfx::AttribType::Uint8, true)
-			.end();
-	};
+    ObjIndex(float vs, float vc, float is, float ic)
+        : vertex_start(vs), vertex_count(vc), index_start(is), index_count(ic)
+    {}
 
-	static bgfx::VertexLayout ms_layout;
+    static bgfx::VertexLayout layout()
+    {
+        static bgfx::VertexLayout layout;
+        if (layout.getStride() != 0) return layout;
+
+        layout.begin()
+            .add(bgfx::Attrib::TexCoord0, 4, bgfx::AttribType::Float)
+            .end();
+
+        return layout;
+    }
 };
 
-bgfx::VertexLayout PosColorVertex::ms_layout;
-
-static PosColorVertex s_cubeVertices[] =
-{
-	{-1.0f,  1.0f,  1.0f, 0xff000000 },
-	{ 1.0f,  1.0f,  1.0f, 0xff0000ff },
-	{-1.0f, -1.0f,  1.0f, 0xff00ff00 },
-	{ 1.0f, -1.0f,  1.0f, 0xff00ffff },
-	{-1.0f,  1.0f, -1.0f, 0xffff0000 },
-	{ 1.0f,  1.0f, -1.0f, 0xffff00ff },
-	{-1.0f, -1.0f, -1.0f, 0xffffff00 },
-	{ 1.0f, -1.0f, -1.0f, 0xffffffff },
-};
-
-static const uint16_t s_cubeTriList[] =
-{
-	0, 1, 2, // 0
-	1, 3, 2,
-	4, 6, 5, // 2
-	5, 6, 7,
-	0, 2, 4, // 4
-	4, 2, 6,
-	1, 5, 3, // 6
-	5, 7, 3,
-	0, 4, 1, // 8
-	4, 5, 1,
-	2, 3, 6, // 10
-	6, 3, 7,
-};
-
-static const uint16_t s_cubeTriStrip[] =
-{
-	0, 1, 2,
-	3,
-	7,
-	1,
-	5,
-	0,
-	4,
-	2,
-	6,
-	7,
-	4,
-	5,
-};
-
-static const uint16_t s_cubeLineList[] =
-{
-	0, 1,
-	0, 2,
-	0, 4,
-	1, 3,
-	1, 5,
-	2, 3,
-	2, 6,
-	3, 7,
-	4, 5,
-	4, 6,
-	5, 7,
-	6, 7,
-};
-
-static const uint16_t s_cubeLineStrip[] =
-{
-	0, 2, 3, 1, 5, 7, 6, 4,
-	0, 2, 6, 4, 5, 7, 3, 1,
-	0,
-};
-
-static const uint16_t s_cubePoints[] =
-{
-	0, 1, 2, 3, 4, 5, 6, 7
-};
-
-static const char* s_ptNames[]
-{
-	"Triangle List",
-	"Triangle Strip",
-	"Lines",
-	"Line Strip",
-	"Points",
-};
-
-static const uint64_t s_ptState[]
-{
-	UINT64_C(0),
-	BGFX_STATE_PT_TRISTRIP,
-	BGFX_STATE_PT_LINES,
-	BGFX_STATE_PT_LINESTRIP,
-	BGFX_STATE_PT_POINTS,
-};
-BX_STATIC_ASSERT(BX_COUNTOF(s_ptState) == BX_COUNTOF(s_ptNames) );
-
-class ExampleCubes : public entry::AppI
+class ExampleHelloWorld : public entry::AppI
 {
 public:
-	ExampleCubes(const char* _name, const char* _description, const char* _url)
+	ExampleHelloWorld(const char* _name, const char* _description, const char* _url)
 		: entry::AppI(_name, _description, _url)
-		, m_pt(0)
-		, m_r(true)
-		, m_g(true)
-		, m_b(true)
-		, m_a(true)
 	{
 	}
+
+	bgfx::DynamicVertexBufferHandle vertex_1;
+	bgfx::DynamicVertexBufferHandle vertex_2;
+	bgfx::DynamicIndexBufferHandle index_1;
+	bgfx::DynamicIndexBufferHandle index_2;
+	bgfx::DynamicVertexBufferHandle objs_buffer;
+	bgfx::IndirectBufferHandle ind1;
+	bgfx::UniformHandle draw_params;
+	bgfx::VertexLayout layout;
+	bgfx::ProgramHandle program;
+	bgfx::ProgramHandle compute;
+
+	float vertex_buffer_1[9] =
+	{
+		-0.5f, -0.5f, 0.0f,
+		 0.5f, -0.5f, 0.0f,
+		 0.0f,  0.5f, 0.0f,
+	};
+
+	uint32_t index_buffer_1[3] =
+	{
+		0, 1, 2
+	};
+
+	float vertex_buffer_2[9] =
+	{
+		-0.5f, -0.5f, 0.0f,
+		 0.0f,  0.5f, 0.0f,
+		 0.5f, -0.5f, 0.0f,
+	};
+
+	uint32_t index_buffer_2[3] =
+	{
+		0, 2, 1
+	};
 
 	void init(int32_t _argc, const char* const* _argv, uint32_t _width, uint32_t _height) override
 	{
@@ -141,7 +83,7 @@ public:
 
 		m_width  = _width;
 		m_height = _height;
-		m_debug  = BGFX_DEBUG_NONE;
+		m_debug  = BGFX_DEBUG_TEXT;
 		m_reset  = BGFX_RESET_VSYNC;
 
 		bgfx::Init init;
@@ -166,50 +108,22 @@ public:
 			, 0
 			);
 
-		// Create vertex stream declaration.
-		PosColorVertex::init();
+		program = loadProgram("vertex", "fragment");
 
-		// Create static vertex buffer.
-		m_vbh = bgfx::createVertexBuffer(
-			// Static data can be passed with bgfx::makeRef
-			  bgfx::makeRef(s_cubeVertices, sizeof(s_cubeVertices) )
-			, PosColorVertex::ms_layout
-			);
+		layout.begin().add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float);
+		vertex_1 = bgfx::createDynamicVertexBuffer(100000, layout);
+		vertex_2 = bgfx::createDynamicVertexBuffer(100000, layout);
+		index_1 = bgfx::createDynamicIndexBuffer(100000, BGFX_BUFFER_INDEX32);
+		index_2 = bgfx::createDynamicIndexBuffer(100000, BGFX_BUFFER_INDEX32);
+		objs_buffer = bgfx::createDynamicVertexBuffer(100000, ObjIndex::layout());
+		draw_params = bgfx::createUniform("draw_params", bgfx::UniformType::Vec4);
+		compute = bgfx::createProgram(loadShader("fill_compute"), true);
+		ind1 = bgfx::createIndirectBuffer(1);
 
-		// Create static index buffer for triangle list rendering.
-		m_ibh[0] = bgfx::createIndexBuffer(
-			// Static data can be passed with bgfx::makeRef
-			bgfx::makeRef(s_cubeTriList, sizeof(s_cubeTriList) )
-			);
-
-		// Create static index buffer for triangle strip rendering.
-		m_ibh[1] = bgfx::createIndexBuffer(
-			// Static data can be passed with bgfx::makeRef
-			bgfx::makeRef(s_cubeTriStrip, sizeof(s_cubeTriStrip) )
-			);
-
-		// Create static index buffer for line list rendering.
-		m_ibh[2] = bgfx::createIndexBuffer(
-			// Static data can be passed with bgfx::makeRef
-			bgfx::makeRef(s_cubeLineList, sizeof(s_cubeLineList) )
-			);
-
-		// Create static index buffer for line strip rendering.
-		m_ibh[3] = bgfx::createIndexBuffer(
-			// Static data can be passed with bgfx::makeRef
-			bgfx::makeRef(s_cubeLineStrip, sizeof(s_cubeLineStrip) )
-			);
-
-		// Create static index buffer for point list rendering.
-		m_ibh[4] = bgfx::createIndexBuffer(
-			// Static data can be passed with bgfx::makeRef
-			bgfx::makeRef(s_cubePoints, sizeof(s_cubePoints) )
-			);
-
-		// Create program from shaders.
-		m_program = loadProgram("vs_cubes", "fs_cubes");
-
-		m_timeOffset = bx::getHPCounter();
+		bgfx::update(vertex_1, 0, bgfx::makeRef(vertex_buffer_1, 9 * sizeof(float)));
+		bgfx::update(vertex_2, 0, bgfx::makeRef(vertex_buffer_2, 9 * sizeof(float)));
+		bgfx::update(index_1, 0, bgfx::makeRef(index_buffer_1, 3 * sizeof(float)));
+		bgfx::update(index_2, 0, bgfx::makeRef(index_buffer_2, 3 * sizeof(float)));
 
 		imguiCreate();
 	}
@@ -217,15 +131,6 @@ public:
 	virtual int shutdown() override
 	{
 		imguiDestroy();
-
-		// Cleanup.
-		for (uint32_t ii = 0; ii < BX_COUNTOF(m_ibh); ++ii)
-		{
-			bgfx::destroy(m_ibh[ii]);
-		}
-
-		bgfx::destroy(m_vbh);
-		bgfx::destroy(m_program);
 
 		// Shutdown bgfx.
 		bgfx::shutdown();
@@ -249,91 +154,46 @@ public:
 
 			showExampleDialog(this);
 
-			ImGui::SetNextWindowPos(
-				  ImVec2(m_width - m_width / 5.0f - 10.0f, 10.0f)
-				, ImGuiCond_FirstUseEver
-				);
-			ImGui::SetNextWindowSize(
-				  ImVec2(m_width / 5.0f, m_height / 3.5f)
-				, ImGuiCond_FirstUseEver
-				);
-			ImGui::Begin("Settings"
-				, NULL
-				, 0
-				);
-
-			ImGui::Checkbox("Write R", &m_r);
-			ImGui::Checkbox("Write G", &m_g);
-			ImGui::Checkbox("Write B", &m_b);
-			ImGui::Checkbox("Write A", &m_a);
-
-			ImGui::Text("Primitive topology:");
-			ImGui::Combo("##topology", (int*)&m_pt, s_ptNames, BX_COUNTOF(s_ptNames) );
-
-			ImGui::End();
-
 			imguiEndFrame();
 
-			float time = (float)( (bx::getHPCounter()-m_timeOffset)/double(bx::getHPFrequency() ) );
+			// Set view 0 default viewport.
+			bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height) );
 
-			const bx::Vec3 at  = { 0.0f, 0.0f,   0.0f };
-			const bx::Vec3 eye = { 0.0f, 0.0f, -35.0f };
+			bgfx::Encoder* encoder = bgfx::begin();
+			float draw_data[4] = {1, 0, 0, 0};
 
-			// Set view and projection matrix for view 0.
-			{
-				float view[16];
-				bx::mtxLookAt(view, eye, at);
+			ObjIndex idx = ObjIndex(0, 0, 0, 3);
+			bgfx::update(objs_buffer, 0, bgfx::makeRef((void*) &idx, 4 * sizeof(ObjIndex)));
 
-				float proj[16];
-				bx::mtxProj(proj, 60.0f, float(m_width)/float(m_height), 0.1f, 100.0f, bgfx::getCaps()->homogeneousDepth);
-				bgfx::setViewTransform(0, view, proj);
+			encoder->setUniform(draw_params, draw_data);
+			encoder->setBuffer(0, objs_buffer, bgfx::Access::Read);
+			encoder->setBuffer(1, ind1, bgfx::Access::Write);
+			encoder->dispatch(0, compute, 1, 1, 1);
 
-				// Set view 0 default viewport.
-				bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height) );
-			}
+			encoder->setVertexBuffer(0, vertex_1);
+			encoder->setIndexBuffer(index_1, 0, 3);
+			encoder->submit(0, program, ind1, 0, 1);
 
-			// This dummy draw call is here to make sure that view 0 is cleared
-			// if no other draw calls are submitted to view 0.
-			bgfx::touch(0);
+			encoder->setVertexBuffer(0, vertex_2);
+			encoder->setIndexBuffer(index_2, 0, 3);
+			encoder->submit(1, program, ind1, 0, 1);
 
-			bgfx::IndexBufferHandle ibh = m_ibh[m_pt];
-			uint64_t state = 0
-				| (m_r ? BGFX_STATE_WRITE_R : 0)
-				| (m_g ? BGFX_STATE_WRITE_G : 0)
-				| (m_b ? BGFX_STATE_WRITE_B : 0)
-				| (m_a ? BGFX_STATE_WRITE_A : 0)
-				| BGFX_STATE_WRITE_Z
-				| BGFX_STATE_DEPTH_TEST_LESS
-				| BGFX_STATE_CULL_CW
-				| BGFX_STATE_MSAA
-				| s_ptState[m_pt]
-				;
+			// Use debug font to print information about this example.
+			bgfx::dbgTextClear();
 
-			// Submit 11x11 cubes.
-			for (uint32_t yy = 0; yy < 11; ++yy)
-			{
-				for (uint32_t xx = 0; xx < 11; ++xx)
-				{
-					float mtx[16];
-					bx::mtxRotateXY(mtx, time + xx*0.21f, time + yy*0.37f);
-					mtx[12] = -15.0f + float(xx)*3.0f;
-					mtx[13] = -15.0f + float(yy)*3.0f;
-					mtx[14] = 0.0f;
+			const bgfx::Stats* stats = bgfx::getStats();
 
-					// Set model matrix for rendering.
-					bgfx::setTransform(mtx);
+			bgfx::dbgTextPrintf(0, 1, 0x0f, "Color can be changed with ANSI \x1b[9;me\x1b[10;ms\x1b[11;mc\x1b[12;ma\x1b[13;mp\x1b[14;me\x1b[0m code too.");
 
-					// Set vertex and index buffer.
-					bgfx::setVertexBuffer(0, m_vbh);
-					bgfx::setIndexBuffer(ibh);
+			bgfx::dbgTextPrintf(80, 1, 0x0f, "\x1b[;0m    \x1b[;1m    \x1b[; 2m    \x1b[; 3m    \x1b[; 4m    \x1b[; 5m    \x1b[; 6m    \x1b[; 7m    \x1b[0m");
+			bgfx::dbgTextPrintf(80, 2, 0x0f, "\x1b[;8m    \x1b[;9m    \x1b[;10m    \x1b[;11m    \x1b[;12m    \x1b[;13m    \x1b[;14m    \x1b[;15m    \x1b[0m");
 
-					// Set render states.
-					bgfx::setState(state);
-
-					// Submit primitive for rendering to view 0.
-					bgfx::submit(0, m_program);
-				}
-			}
+			bgfx::dbgTextPrintf(0, 2, 0x0f, "Backbuffer %dW x %dH in pixels, debug text %dW x %dH in characters."
+				, stats->width
+				, stats->height
+				, stats->textWidth
+				, stats->textHeight
+				);
 
 			// Advance to next frame. Rendering thread will be kicked to
 			// process submitted rendering primitives.
@@ -351,23 +211,13 @@ public:
 	uint32_t m_height;
 	uint32_t m_debug;
 	uint32_t m_reset;
-	bgfx::VertexBufferHandle m_vbh;
-	bgfx::IndexBufferHandle m_ibh[BX_COUNTOF(s_ptState)];
-	bgfx::ProgramHandle m_program;
-	int64_t m_timeOffset;
-	int32_t m_pt;
-
-	bool m_r;
-	bool m_g;
-	bool m_b;
-	bool m_a;
 };
 
 } // namespace
 
 ENTRY_IMPLEMENT_MAIN(
-	  ExampleCubes
-	, "01-cubes"
-	, "Rendering simple static mesh."
-	, "https://bkaradzic.github.io/bgfx/examples.html#cubes"
+	  ExampleHelloWorld
+	, "01-bug"
+	, "Initialization and debug text."
+	, "https://bkaradzic.github.io/bgfx/examples.html#helloworld"
 	);
