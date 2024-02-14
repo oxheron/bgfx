@@ -108,7 +108,7 @@ public:
 			, 0
 			);
 
-		program = loadProgram("vertex", "fragment");
+		program = loadProgram("vs_bug", "fs_bug");
 
 		layout.begin().add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float);
 		vertex_1 = bgfx::createDynamicVertexBuffer(100000, layout);
@@ -117,7 +117,7 @@ public:
 		index_2 = bgfx::createDynamicIndexBuffer(100000, BGFX_BUFFER_INDEX32);
 		objs_buffer = bgfx::createDynamicVertexBuffer(100000, ObjIndex::layout());
 		draw_params = bgfx::createUniform("draw_params", bgfx::UniformType::Vec4);
-		compute = bgfx::createProgram(loadShader("fill_compute"), true);
+		compute = bgfx::createProgram(loadShader("cs_bug"), true);
 		ind1 = bgfx::createIndirectBuffer(1);
 
 		bgfx::update(vertex_1, 0, bgfx::makeRef(vertex_buffer_1, 9 * sizeof(float)));
