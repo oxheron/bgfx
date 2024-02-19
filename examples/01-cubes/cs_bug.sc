@@ -1067,6 +1067,6 @@ void main()
 
     for (int i = idx_start; i < idx_end; i++)
     {
-        drawIndexedIndirect(out_draws, i, in_draws[i].w, 1u, in_draws[i].z, in_draws[i].x, i);
+        drawIndexedIndirect(out_draws, i, in_draws[i].w, 1u, in_draws[i].z + draw_params.y, in_draws[i].x, i);
     }
 }

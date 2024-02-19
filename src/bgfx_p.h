@@ -3602,6 +3602,18 @@ namespace bgfx
 			return handle;
 		}
 
+		BGFX_API_FUNC(size_t getDynamicIndexBufferOffset(DynamicIndexBufferHandle _handle))
+		{
+			BGFX_MUTEX_SCOPE(m_resourceApiLock);
+
+			BGFX_CHECK_HANDLE("getDynamicIndexBufferOffset", m_dynamicIndexBufferHandle, _handle);
+
+			DynamicIndexBuffer& dib = m_dynamicIndexBuffers[_handle.idx];
+			const uint32_t indexSize = 0 == (dib.m_flags & BGFX_BUFFER_INDEX32) ? 2 : 4;
+
+			return dib.m_startIndex * indexSize;
+		}
+
 		BGFX_API_FUNC(void update(DynamicIndexBufferHandle _handle, uint32_t _startIndex, const Memory* _mem) )
 		{
 			BGFX_MUTEX_SCOPE(m_resourceApiLock);

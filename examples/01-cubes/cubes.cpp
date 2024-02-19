@@ -7,6 +7,7 @@
 #include "common.h"
 #include "bgfx_utils.h"
 #include "imgui/imgui.h"
+#include <iostream>
 
 namespace
 {
@@ -160,7 +161,7 @@ public:
 			bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height) );
 
 			bgfx::Encoder* encoder = bgfx::begin();
-			float draw_data[4] = {1, 0, 0, 0};
+			float draw_data[4] = {1, (float) (bgfx::getDynamicIndexBufferOffset(index_2) / sizeof(uint32_t)), 0, 0};
 
 			ObjIndex idx = ObjIndex(0, 0, 0, 3);
 			bgfx::update(objs_buffer, 0, bgfx::makeRef((void*) &idx, 4 * sizeof(ObjIndex)));
@@ -170,13 +171,9 @@ public:
 			encoder->setBuffer(1, ind1, bgfx::Access::Write);
 			encoder->dispatch(0, compute, 1, 1, 1);
 
-			encoder->setVertexBuffer(0, vertex_1);
-			encoder->setIndexBuffer(index_1, 0, 3);
-			encoder->submit(0, program, ind1, 0, 1);
-
 			encoder->setVertexBuffer(0, vertex_2);
 			encoder->setIndexBuffer(index_2, 0, 3);
-			encoder->submit(1, program, ind1, 0, 1);
+			encoder->submit(0, program, ind1, 0, 1);
 
 			// Use debug font to print information about this example.
 			bgfx::dbgTextClear();

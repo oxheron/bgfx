@@ -2395,6 +2395,17 @@ namespace bgfx
 		, uint16_t _flags = BGFX_BUFFER_NONE
 		);
 
+	/// Get the offset of a dynamic index buffer.
+	///
+	/// @param[in] _handle Dynamic index buffer handle.
+	/// @returns Offset of dynamic index buffer, in bytes.
+	///
+	/// @attention No C99 binding yet.
+	///
+	size_t getDynamicIndexBufferOffset(
+		  DynamicIndexBufferHandle _handle
+		);
+
 	/// Update dynamic index buffer.
 	///
 	/// @param[in] _handle Dynamic index buffer handle.

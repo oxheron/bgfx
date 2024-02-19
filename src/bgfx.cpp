@@ -4232,6 +4232,11 @@ namespace bgfx
 		return s_ctx->createDynamicIndexBuffer(_mem, _flags);
 	}
 
+	size_t getDynamicIndexBufferOffset(DynamicIndexBufferHandle _handle)
+	{
+		return s_ctx->getDynamicIndexBufferOffset(_handle);
+	}
+
 	void update(DynamicIndexBufferHandle _handle, uint32_t _startIndex, const Memory* _mem)
 	{
 		BX_ASSERT(NULL != _mem, "_mem can't be NULL");
